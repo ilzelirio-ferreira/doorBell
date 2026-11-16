@@ -10,8 +10,7 @@ CONFIG_ESP_CONSOLE_USB_CDC=y
 CONFIG_LIBC_PICOLIBC=n
 CONFIG_LIBC_NEWLIB=y
 
-# One 60 Hz optocoupler input (GPIO 33) and active-high MOC3023 output (GPIO 35).
-CONFIG_RELAY_ACTIVE_LOW=n
+# Dry contact to GND (GPIO 33), internal pull-up, active-high visitor LED (GPIO 35).
 
 CONFIG_ESP_MATTER_MAX_DYNAMIC_ENDPOINT_COUNT=2
 

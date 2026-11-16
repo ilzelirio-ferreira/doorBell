@@ -1,4 +1,4 @@
-name: Build ESP-Matter
+name: Build doorBell ESP-Matter
 
 on:
   push:
@@ -20,8 +20,8 @@ jobs:
 
       - name: Test input filter and portal validation
         run: |
-          g++ -std=c++17 -Wall -Wextra -Werror light/tests/ac_input_test.cpp -o /tmp/ac_input_test
-          /tmp/ac_input_test
+          g++ -std=c++17 -Wall -Wextra -Werror light/tests/doorbell_test.cpp -o /tmp/doorbell_test
+          /tmp/doorbell_test
           g++ -std=c++17 -Wall -Wextra -Werror light/tests/web_helpers_test.cpp -o /tmp/web_helpers_test
           /tmp/web_helpers_test
           g++ -std=c++17 -Wall -Wextra -Werror light/tests/pairing_identity_test.cpp -o /tmp/pairing_identity_test
@@ -47,7 +47,7 @@ jobs:
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: light-firmware
+          name: doorbell-firmware
           path: |
             light/build/light.bin
             light/build/light.elf
@@ -65,5 +65,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           release_tag="firmware-${GITHUB_SHA:0:7}"
-          gh release create "$release_tag" light/build/light.bin --target "$GITHUB_SHA" --title "Firmware ${GITHUB_SHA:0:7}" --notes "Firmware ESP32-S2 Light1Canal. Arquivo light.bin para atualizacao OTA pelo painel." --draft
+          gh release create "$release_tag" light/build/light.bin --target "$GITHUB_SHA" --title "Firmware ${GITHUB_SHA:0:7}" --notes "Firmware ESP32-S2 doorBell. Arquivo light.bin para atualizacao OTA pelo painel." --draft
           gh release edit "$release_tag" --draft=false --latest

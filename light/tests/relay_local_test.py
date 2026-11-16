@@ -24,7 +24,8 @@ inline bool GPIO_IS_VALID_OUTPUT_GPIO(int){return true;} inline bool GPIO_IS_VAL
 struct gpio_config_t{int mode=0,pull_up_en=0;uint64_t pin_bit_mask=0;};
 static int physical_level=0;
 inline int gpio_set_level(int,bool b){physical_level=b;return 0;}
-inline int gpio_config(gpio_config_t*){return 0;}
+inline int gpio_config(gpio_config_t* c){if(c->mode==GPIO_MODE_INPUT)assert(c->pull_up_en==GPIO_PULLUP_ENABLE);return 0;}
+inline int gpio_get_level(int){return 1;}
 inline int gpio_install_isr_service(int){return 0;}
 inline int gpio_isr_handler_add(int,void(*)(void*),void*){return 0;}
 inline int gpio_set_intr_type(int,int){return 0;}
@@ -55,66 +56,31 @@ int update(uint16_t endpoint,int cluster,int,esp_matter_attr_val_t* value){
  return app_relay_set_power(endpoint,value->val.b);
 }}}
 int main(){
- assert(app_relay_init()==ESP_OK);
- assert(app_relay_start_switch()==ESP_OK); // No Matter endpoint or network exists yet.
- assert(toggle_local(0)==ESP_OK && physical_level==1);
- assert(toggle_local(0)==ESP_OK && physical_level==0);
+ assert(app_relay_init()==ESP_OK && physical_level==0);
+ assert(app_relay_start_switch()==ESP_OK);
+ sample_contact(0,true,0); sample_contact(0,true,30000);
+ assert(physical_level==1 && power[0]); // works before Matter is available
+ blink_tick(0,530000); assert(physical_level==0 && power[0]);
  assert(app_relay_register_endpoint(0,1)==ESP_OK);
- assert(app_relay_restore_power(1,true)==ESP_OK && physical_level==0); // Don't undo boot-time switch operations.
- assert(app_relay_set_power(1,true)==ESP_OK && physical_level==0); // Startup callbacks also preserve physical operations.
+ assert(app_relay_restore_power(1,false)==ESP_OK && power[0]);
  app_relay_enable_matter_sync();
- queue_sync(0); // Fake Matter queue rejects the work.
- assert(!pending[0] && dirty[0] && physical_level==0);
- assert(toggle_local(0)==ESP_OK && physical_level==1);
- during_report=[](){assert(toggle_local(0)==ESP_OK);}; // Local input changes during an old Matter report.
- sync_matter(0);
- assert(physical_level==0 && reported==true && dirty[0]); // Stale report cannot restore old hardware level.
- during_report={};sync_matter(0);
- assert(!reported && physical_level==0 && !dirty[0]);
- assert(app_relay_set_power(1,true)==ESP_OK && physical_level==1); // Remote control still works.
- assert(toggle_local(0)==ESP_OK && physical_level==0); // Physical input toggles the actual remote state.
- assert(app_relay_set_power(1,true)==ESP_OK);
- assert(blink[0].level==254 && physical_level==1);
- assert(app_relay_brightness_command(1)==ESP_OK);
- assert(app_relay_set_brightness(1,1)==ESP_OK);
- assert(AppBlink::half_period(1)==500000);
- fake_time=499999;blink_tick(0,fake_time);assert(physical_level==1);
- fake_time=500000;blink_tick(0,fake_time);assert(physical_level==0 && power[0]);
- fake_time=1000000;blink_tick(0,fake_time);assert(physical_level==1);
- assert(app_relay_brightness_command(1)==ESP_OK);
- assert(app_relay_set_brightness(1,253)==ESP_OK);
- assert(AppBlink::half_period(253)==50000);
- fake_time+=50000;blink_tick(0,fake_time);assert(physical_level==0);
- assert(app_relay_power_command(1,true)==ESP_OK); // Explicit On cancels flashing even if logically on.
- fake_time+=1000000;blink_tick(0,fake_time);assert(physical_level==1 && blink[0].level==254);
- assert(app_relay_brightness_command(1)==ESP_OK);
- assert(app_relay_set_brightness(1,253)==ESP_OK);
- fake_time+=50000;blink_tick(0,fake_time);assert(physical_level==0 && power[0]);
- assert(toggle_local(0)==ESP_OK && !power[0] && blink[0].level==0);
- fake_time+=1000000;blink_tick(0,fake_time);assert(physical_level==0);
- assert(toggle_local(0)==ESP_OK && physical_level==1 && blink[0].level==254);
- sync_matter(0);assert(reported && reported_brightness==254);
- for(int n=2;n<=253;++n)assert(AppBlink::half_period(n)<=AppBlink::half_period(n-1));
- assert(app_relay_brightness_command(1)==ESP_OK);
- assert(app_relay_set_brightness(1,0)==ESP_OK && blink[0].level==0 && !power[0] && physical_level==0);
- assert(app_relay_power_command(1,false)==ESP_OK && physical_level==0 && blink[0].level==0);
- assert(app_relay_brightness_command(1)==ESP_OK);
- assert(app_relay_set_brightness(1,254)==ESP_OK && physical_level==1 && blink[0].level==254);
- fake_time+=1000000;blink_tick(0,fake_time);assert(physical_level==1);
- assert(app_relay_power_command(1,true)==ESP_OK && blink[0].level==254);
- assert(app_relay_power_command(1,false)==ESP_OK && blink[0].level==0);
- // Reproduce the SDK restoring the old brightness after an Off command.
- assert(app_relay_set_brightness(1,128)==ESP_OK && physical_level==0 && !power[0]);
- fake_time+=1000000;blink_tick(0,fake_time);assert(physical_level==0);
- sync_matter(0);assert(!reported && reported_brightness==1 && !dirty[0] && physical_level==0);
- assert(app_relay_power_command(1,true)==ESP_OK);
- assert(app_relay_set_brightness(1,128)==ESP_OK && physical_level==1 && blink[0].level==254);
- assert(app_relay_brightness_command(1)==ESP_OK);
- assert(app_relay_set_brightness(1,128)==ESP_OK && blink[0].level==128);
- assert(app_relay_set_power(1,true)==ESP_OK && blink[0].level==128); // Coupled OnOff keeps requested frequency.
- assert(app_relay_power_command(1,false)==ESP_OK);
- assert(app_relay_set_brightness(1,254)==ESP_OK && !power[0]);
+ queue_sync(0); assert(!pending[0] && dirty[0]); // stalled Matter queue
+ sync_matter(0); assert(reported && !dirty[0]);
+ assert(app_relay_power_command(1,false)==ESP_OK && power[0]);
+ assert(app_relay_set_brightness(1,254)==ESP_OK && physical_level==0);
+ blink_tick(0,10030000); assert(physical_level==0 && !power[0]);
+ sync_matter(0); assert(!reported && !dirty[0]);
+ assert(app_relay_power_command(1,true)==ESP_OK && physical_level==0);
+ assert(app_relay_restore_power(1,true)==ESP_OK && physical_level==0);
+ sample_contact(0,true,11000000); assert(!power[0]);
+ sample_contact(0,false,12000000); sample_contact(0,false,12030000);
+ sample_contact(0,true,13000000); sample_contact(0,true,13030000);
+ assert(physical_level==1 && power[0]);
+ during_report=[](){blink_tick(0,23030000);};
+ sync_matter(0); assert(!power[0] && physical_level==0 && dirty[0]);
+ during_report={}; sync_matter(0); assert(!reported && !dirty[0]);
 }
+
 '''
 with tempfile.TemporaryDirectory() as directory:
  d=pathlib.Path(directory)
@@ -124,4 +90,4 @@ with tempfile.TemporaryDirectory() as directory:
  (d/'test.cpp').write_text(test)
  subprocess.run(['g++','-std=c++17','-Wall','-Wextra','-Werror','-I'+str(d),'-I'+str(root/'light/main'),str(d/'test.cpp'),'-o',str(d/'test')],check=True)
  subprocess.run([str(d/'test')],check=True)
- print('Local GPIO: no Matter startup, failed queue, stale report and remote control passed.')
+ print('doorBell: local contact, pull-up, timeout, held button, remote isolation and stale Matter report passed.')

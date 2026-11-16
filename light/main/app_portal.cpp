@@ -120,7 +120,7 @@ esp_err_t app_portal_load()
     config = {};
     config.version = 3;
     memcpy(config.inputs, APP_DEFAULT_INPUTS, sizeof(APP_DEFAULT_INPUTS));
-    snprintf(config.module, sizeof(config.module), "Light 1 canal");
+    snprintf(config.module, sizeof(config.module), "Campainha");
     snprintf(config.key, sizeof(config.key), "configurar123");
     for (unsigned i = 0; i < sizeof(config.names) / sizeof(config.names[0]); ++i)
         snprintf(config.names[i], sizeof(config.names[i]), "Luz %u", i + 1);
@@ -493,7 +493,7 @@ static esp_err_t ota_post(httpd_req_t *req)
 }
 
 static constexpr const char *OTA_LATEST_URL =
-    "https://github.com/ilzelirio-ferreira/light1canal/releases/latest/download/light.bin";
+    "https://github.com/ilzelirio-ferreira/doorBell/releases/latest/download/light.bin";
 // Status is shared with the HTTP server; the network task owns the OTA handle.
 static std::atomic<int> github_ota_state{0}; // idle, downloading, done, failed
 static std::atomic<int> github_ota_bytes{0}, github_ota_total{0};
@@ -525,7 +525,7 @@ static void github_ota_task(void *)
     // GitHub release-asset redirects contain signed query strings longer than 512 bytes.
     http.buffer_size = 4096;
     http.buffer_size_tx = 4096;
-    http.user_agent = "Light1Canal-OTA";
+    http.user_agent = "doorBell-OTA";
     http.max_redirection_count = 8;
     http.keep_alive_enable = true;
     esp_https_ota_config_t ota = {};
@@ -711,7 +711,7 @@ esp_err_t app_portal_start()
     ESP_RETURN_ON_ERROR(esp_timer_create(&timer, &reboot_timer), TAG, "reboot timer");
     uint8_t mac[6];
     ESP_RETURN_ON_ERROR(esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP), TAG, "AP MAC");
-    snprintf(ap_name, sizeof(ap_name), "Light-%02X%02X%02X", mac[3], mac[4], mac[5]);
+    snprintf(ap_name, sizeof(ap_name), "doorBell-%02X%02X%02X", mac[3], mac[4], mac[5]);
     httpd_config_t http = HTTPD_DEFAULT_CONFIG();
     http.stack_size = 8192;
     http.max_uri_handlers = 7;
@@ -745,7 +745,7 @@ esp_err_t app_portal_start()
 }
 #else
 esp_err_t app_portal_load() { return ESP_OK; }
-const char *app_portal_module_name() { return "Light"; }
+const char *app_portal_module_name() { return "doorBell"; }
 esp_err_t app_portal_add_channel(esp_matter::endpoint_t *, unsigned) { return ESP_OK; }
 esp_err_t app_portal_start() { return ESP_OK; }
 #endif
